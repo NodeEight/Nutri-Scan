@@ -1,0 +1,13 @@
+streamlit
+sqlalchemy
+uvicorn
+psycopg2-binary
+torch
+tensorflow 
+matplotlib
+torchvision
+fastapi
+python-multipart 
+pillow
+cloudinary
+plotly
