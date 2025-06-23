@@ -3,9 +3,11 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import sqlite3
-from datetime import datetime, timedelta
+from sqlalchemy import create_engine
+import os
+from dotenv import load_dotenv
 import numpy as np
+from datetime import datetime
 
 # Page configuration
 st.set_page_config(
@@ -14,29 +16,33 @@ st.set_page_config(
     layout="wide"
 )
 
-# Database connection
-def get_database_connection():
-    """Create a connection to the SQLite database"""
-    return sqlite3.connect('malnutrition.db')
+# Load environment variables
+load_dotenv()
+
+DATABASE_URL = (
+        st.secrets.get("DATABASE_URL") or 
+        os.getenv("DATABASE_URL") or 
+        "your_cloud_name"
+    )
+
+engine = create_engine(DATABASE_URL)
 
 def load_data():
-    """Load data from both tables"""
-    conn = get_database_connection()
-    
+    """Load data from both tables using SQLAlchemy engine"""
     # Load malnourished data
-    malnourished_df = pd.read_sql_query("""
+    malnourished_df = pd.read_sql_query(
+        """
         SELECT *, 'Malnourished' as category 
         FROM malnurish
-    """, conn)
-    
+        """, engine
+    )
     # Load nourished data
-    nourished_df = pd.read_sql_query("""
+    nourished_df = pd.read_sql_query(
+        """
         SELECT *, 'Nourished' as category 
         FROM nurish
-    """, conn)
-    
-    conn.close()
-    
+        """, engine
+    )
     # Combine datasets
     if not malnourished_df.empty and not nourished_df.empty:
         combined_df = pd.concat([malnourished_df, nourished_df], ignore_index=True)
@@ -46,7 +52,6 @@ def load_data():
         combined_df = nourished_df
     else:
         combined_df = pd.DataFrame()
-    
     return combined_df, malnourished_df, nourished_df
 
 def main():

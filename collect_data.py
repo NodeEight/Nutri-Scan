@@ -1,9 +1,31 @@
 import streamlit as st
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from datetime import datetime
+# from sqlalchemy import create_engine
+# from sqlalchemy.orm import sessionmaker
+# from datetime import datetime
 from database_schema import *
 from cloudinary_utils import upload_image_to_cloudinary, test_cloudinary_connection
+import os
+from dotenv import load_dotenv
+from sqlalchemy import text
+
+# Load environment variables
+load_dotenv()
+
+# Initialize database
+try:
+    init_db()
+    print("✅ Database initialized successfully")
+except Exception as e:
+    print(f"❌ Error initializing database: {str(e)}")
+
+def check_db_connection():
+    """Test the database connection"""
+    try:
+        with SessionLocal() as session:
+            session.execute(text("SELECT 1"))
+        return True, "Database connection successful"
+    except Exception as e:
+        return False, f"Database connection failed: {str(e)}"
 
 # Page configuration
 st.set_page_config(
@@ -32,11 +54,12 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Create the SQLAlchemy engine and session
-SQLALCHEMY_DATABASE_URL = 'sqlite:///./malnutrition.db'
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
-Base.metadata.create_all(bind=engine)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# --- The following SQLite setup is NOT needed when using PostgreSQL ---
+# SQLALCHEMY_DATABASE_URL = 'sqlite:///./malnutrition.db'
+# engine = create_engine(SQLALCHEMY_DATABASE_URL)
+# Base.metadata.create_all(bind=engine)
+# SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# ---------------------------------------------------------------------
 
 def validate_required_fields(data):
     """Validate that all required fields are filled and have valid values"""
@@ -102,6 +125,20 @@ def main():
         st.title('Nutri-Scan')
         st.markdown('---')
         
+        # Check database connection
+        db_status, db_message = check_db_connection()
+        if not db_status:
+            st.error("⚠️ Database connection error")
+            st.info(f"Please check your database configuration: {db_message}")
+        else:
+            st.success("✅ Database connected")
+        
+        # Check Cloudinary connection
+        connection_status, message = test_cloudinary_connection()
+        if not connection_status:
+            st.warning("⚠️ Cloudinary connection not configured")
+            st.info("Configure credentials in .streamlit/secrets.toml")
+        
         classes = ['Malnourish', 'Nourished']
         selected_class = st.radio('👥 Select Patient Category', classes)
         
@@ -112,12 +149,6 @@ def main():
         st.markdown("### 📊 Form Progress")
         st.progress(st.session_state.form_progress)
         
-        # Cloudinary status
-        connection_status, message = test_cloudinary_connection()
-        if not connection_status:
-            st.warning("⚠️ Cloudinary connection not configured")
-            st.info("Configure credentials in .streamlit/secrets.toml")
-    
     # Main content
     st.title("🏥 Malnutrition Data Collection")
     st.markdown(f"### Collecting data for {selected_class} patient")
@@ -348,4 +379,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    print('done')
