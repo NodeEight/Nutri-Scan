@@ -150,7 +150,7 @@ def main():
         st.progress(st.session_state.form_progress)
         
     # Main content
-    st.title("🏥 Malnutrition Data Collection")
+    st.title("🏥 Data Collection")
     st.markdown(f"### Collecting data for {selected_class} patient")
     
     with st.form("user_form", clear_on_submit=True):
