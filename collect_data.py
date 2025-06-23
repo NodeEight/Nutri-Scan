@@ -122,147 +122,153 @@ def main():
     st.title("🏥 Malnutrition Data Collection")
     st.markdown(f"### Collecting data for {selected_class} patient")
     
-    # Create tabs for better organization
-    tab1, tab2, tab3 = st.tabs(["📋 Basic Information", "🔍 Medical Indicators", "📸 Images"])
-    
     with st.form("user_form", clear_on_submit=True):
-        with tab1:
-            col1, col2 = st.columns(2)
-            with col1:
-                age = st.number_input(
-                    "Age (months)", 
-                    min_value=0.0, 
-                    max_value=150.0, 
-                    value=0.0, 
-                    step=0.5,
-                    help="Enter the patient's age in months"
-                )
-                
-                weight = st.number_input(
-                    "Weight (kg)", 
-                    min_value=0.0, 
-                    max_value=100.0, 
-                    value=0.0, 
-                    step=0.1,
-                    help="Enter the patient's weight in kilograms"
-                )
+        # Basic Information Section
+        st.markdown("## 📋 Basic Information")
+        st.markdown("---")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            age = st.number_input(
+                "Age (months)", 
+                min_value=0.0, 
+                max_value=150.0, 
+                value=0.0, 
+                step=0.5,
+                help="Enter the patient's age in months"
+            )
             
-            with col2:
-                height = st.number_input(
-                    "Height (cm)", 
-                    min_value=0.0, 
-                    max_value=200.0, 
-                    value=0.0, 
-                    step=0.1,
-                    help="Enter the patient's height in centimeters"
-                )
-                
-                hand_circumference = st.number_input(
-                    "Mid Lower Hand Circumference (cm)", 
-                    min_value=0.0, 
-                    max_value=50.0, 
-                    value=0.0, 
-                    step=0.1,
-                    help="Measure and enter the mid-lower arm circumference"
-                )
-            
-            location = st.text_input(
-                "Location",
-                help="Enter the location where data is being collected"
+            weight = st.number_input(
+                "Weight (kg)", 
+                min_value=0.0, 
+                max_value=100.0, 
+                value=0.0, 
+                step=0.1,
+                help="Enter the patient's weight in kilograms"
             )
         
-        with tab2:
-            col1, col2 = st.columns(2)
-            with col1:
-                skin_type = st.selectbox(
-                    "Skin Condition",
-                    ['Dry and scaly', 'Rash'],
-                    help="Select the observed skin condition"
-                )
-                
-                hair_type = st.selectbox(
-                    "Hair Condition",
-                    ['Dry flaky scalp', 'Thin sparse hair'],
-                    help="Select the observed hair condition"
-                )
-                
-                eyes_type = st.selectbox(
-                    "Eye Condition",
-                    ['Jaundice', 'Dry sour eyes'],
-                    help="Select the observed eye condition"
-                )
+        with col2:
+            height = st.number_input(
+                "Height (cm)", 
+                min_value=0.0, 
+                max_value=200.0, 
+                value=0.0, 
+                step=0.1,
+                help="Enter the patient's height in centimeters"
+            )
             
-            with col2:
-                oedema = st.selectbox(
-                    "Oedema Present",
-                    ['no', 'yes'],
-                    help="Select if oedema is present"
-                )
-                
-                angular_stomatitis = st.selectbox(
-                    "Angular Stomatitis",
-                    ['no', 'yes'],
-                    help="Select if angular stomatitis is present"
-                )
-                
-                cheilosis = st.selectbox(
-                    "Cheilosis",
-                    ['no', 'yes'],
-                    help="Select if cheilosis is present"
-                )
-                
-                bowlegs = st.selectbox(
-                    "Bowlegs Present",
-                    ['no', 'yes'],
-                    help="Select if bowlegs condition is present"
-                )
-            
-            if selected_class == 'Malnourish':
-                type_of_malnutrition = st.text_input(
-                    "Type of Malnutrition",
-                    help="Specify the type of malnutrition observed"
-                )
+            hand_circumference = st.number_input(
+                "Mid Lower Hand Circumference (cm)", 
+                min_value=0.0, 
+                max_value=50.0, 
+                value=0.0, 
+                step=0.1,
+                help="Measure and enter the mid-lower arm circumference"
+            )
         
-        with tab3:
-            st.markdown("### Upload Patient Images")
-            st.info("Please upload clear, well-lit images for accurate documentation")
+        location = st.text_input(
+            "Location",
+            help="Enter the location where data is being collected"
+        )
+        
+        # Medical Indicators Section
+        st.markdown("## 🔍 Medical Indicators")
+        st.markdown("---")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            skin_type = st.selectbox(
+                "Skin Condition",
+                ['Dry and scaly', 'Rash'],
+                help="Select the observed skin condition"
+            )
             
-            col1, col2 = st.columns(2)
-            with col1:
-                face_image = st.file_uploader(
-                    "Face Image",
-                    type=['png', 'jpg', 'jpeg'],
-                    help="Upload a clear front-facing image",
-                    key="face_image"
-                )
-                
-                hair_image = st.file_uploader(
-                    "Hair Image",
-                    type=['png', 'jpg', 'jpeg'],
-                    help="Upload a clear image of the scalp/hair",
-                    key="hair_image"
-                )
+            hair_type = st.selectbox(
+                "Hair Condition",
+                ['Dry flaky scalp', 'Thin sparse hair'],
+                help="Select the observed hair condition"
+            )
             
-            with col2:
-                hands_image = st.file_uploader(
-                    "Hands Image",
-                    type=['png', 'jpg', 'jpeg'],
-                    help="Upload a clear image of both hands",
-                    key="hands_image"
-                )
-                
-                leg_image = st.file_uploader(
-                    "Leg Image",
-                    type=['png', 'jpg', 'jpeg'],
-                    help="Upload a clear image of the legs",
-                    key="leg_image"
-                )
+            eyes_type = st.selectbox(
+                "Eye Condition",
+                ['Jaundice', 'Dry sour eyes'],
+                help="Select the observed eye condition"
+            )
+        
+        with col2:
+            oedema = st.selectbox(
+                "Oedema Present",
+                ['no', 'yes'],
+                help="Select if oedema is present"
+            )
+            
+            angular_stomatitis = st.selectbox(
+                "Angular Stomatitis",
+                ['no', 'yes'],
+                help="Select if angular stomatitis is present"
+            )
+            
+            cheilosis = st.selectbox(
+                "Cheilosis",
+                ['no', 'yes'],
+                help="Select if cheilosis is present"
+            )
+            
+            bowlegs = st.selectbox(
+                "Bowlegs Present",
+                ['no', 'yes'],
+                help="Select if bowlegs condition is present"
+            )
+        
+        if selected_class == 'Malnourish':
+            type_of_malnutrition = st.text_input(
+                "Type of Malnutrition",
+                help="Specify the type of malnutrition observed"
+            )
+        
+        # Image Upload Section
+        st.markdown("## 📸 Image Upload")
+        st.markdown("---")
+        st.info("Please upload clear, well-lit images for accurate documentation")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            face_image = st.file_uploader(
+                "Face Image",
+                type=['png', 'jpg', 'jpeg'],
+                help="Upload a clear front-facing image",
+                key="face_image"
+            )
+            
+            hair_image = st.file_uploader(
+                "Hair Image",
+                type=['png', 'jpg', 'jpeg'],
+                help="Upload a clear image of the scalp/hair",
+                key="hair_image"
+            )
+        
+        with col2:
+            hands_image = st.file_uploader(
+                "Hands Image",
+                type=['png', 'jpg', 'jpeg'],
+                help="Upload a clear image of both hands",
+                key="hands_image"
+            )
+            
+            leg_image = st.file_uploader(
+                "Leg Image",
+                type=['png', 'jpg', 'jpeg'],
+                help="Upload a clear image of the legs",
+                key="leg_image"
+            )
         
         # Preview section for all images
         if any([face_image, hair_image, hands_image, leg_image]):
+            st.markdown("### Image Preview")
             st.markdown("---")
             create_image_preview_section()
         
+        # Submit Button Section
         st.markdown("---")
         submitted = st.form_submit_button("💾 Save Patient Data", type='primary', use_container_width=True)
         
