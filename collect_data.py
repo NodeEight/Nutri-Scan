@@ -5,6 +5,32 @@ from datetime import datetime
 from database_schema import *
 from cloudinary_utils import upload_image_to_cloudinary, test_cloudinary_connection
 
+# Page configuration
+st.set_page_config(
+    page_title="Nutri-Scan Data Collection",
+    page_icon="🏥",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Custom CSS for better styling
+st.markdown("""
+    <style>
+    .main > div {
+        padding: 2rem;
+    }
+    .stButton>button {
+        width: 100%;
+    }
+    .upload-header {
+        font-size: 1.2rem;
+        margin-bottom: 1rem;
+    }
+    .stProgress > div > div > div > div {
+        background-color: #00cc00;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # Create the SQLAlchemy engine and session
 SQLALCHEMY_DATABASE_URL = 'sqlite:///./malnutrition.db'
@@ -12,185 +38,307 @@ engine = create_engine(SQLALCHEMY_DATABASE_URL)
 Base.metadata.create_all(bind=engine)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Streamlit app
+def validate_required_fields(data):
+    """Validate that all required fields are filled and have valid values"""
+    required_fields = {
+        'age': 'Age',
+        'weight': 'Weight',
+        'height': 'Height',
+        'mid_lower_hand_circumference': 'Hand Circumference',
+        'location': 'Location'
+    }
+    
+    missing_fields = []
+    invalid_fields = []
+    
+    for field, label in required_fields.items():
+        # Special handling for numeric fields
+        if field in ['age', 'weight', 'height', 'mid_lower_hand_circumference']:
+            value = data.get(field)
+            if value is None:
+                missing_fields.append(label)
+            elif value <= 0:
+                invalid_fields.append(label)
+        # Handle string fields
+        elif not data.get(field):
+            missing_fields.append(label)
+    
+    errors = []
+    if missing_fields:
+        errors.append(f"Please fill in the following required fields: {', '.join(missing_fields)}")
+    if invalid_fields:
+        errors.append(f"Please enter values greater than 0 for: {', '.join(invalid_fields)}")
+    
+    return errors
+
+def create_image_preview_section():
+    """Create a section to preview all uploaded images"""
+    st.markdown("### 📸 Image Preview")
+    cols = st.columns(4)
+    
+    images = {
+        'Face': st.session_state.get('face_image'),
+        'Hair': st.session_state.get('hair_image'),
+        'Hands': st.session_state.get('hands_image'),
+        'Legs': st.session_state.get('leg_image')
+    }
+    
+    for idx, (label, image) in enumerate(images.items()):
+        with cols[idx]:
+            st.markdown(f"**{label}**")
+            if image:
+                st.image(image, width=150, caption=f'{label} image')
+            else:
+                st.markdown("*No image uploaded*")
+
 def main():
-    st.title(":blue[Malnutrition Data Collection Form]")
+    # Initialize session state for progress tracking
+    if 'form_progress' not in st.session_state:
+        st.session_state.form_progress = 0
     
-    # Test Cloudinary connection
-    connection_status, message = test_cloudinary_connection()
-    if not connection_status:
-        print(message)
-        # st.warning(f"⚠️ {message}")
-        # st.info("Please configure your Cloudinary credentials in `.streamlit/secrets.toml` or set environment variables.")
-    else:
-        pass
-        # st.success("✅ Cloudinary credentials configured!")
+    # Sidebar
+    with st.sidebar:
+        st.image('images/img.PNG', use_container_width=True)
+        st.title('Nutri-Scan')
+        st.markdown('---')
         
+        classes = ['Malnourish', 'Nourished']
+        selected_class = st.radio('👥 Select Patient Category', classes)
+        
+        st.markdown('---')
+        st.markdown(f"**Selected Category:** {selected_class}")
+        
+        # Display progress
+        st.markdown("### 📊 Form Progress")
+        st.progress(st.session_state.form_progress)
+        
+        # Cloudinary status
+        connection_status, message = test_cloudinary_connection()
+        if not connection_status:
+            st.warning("⚠️ Cloudinary connection not configured")
+            st.info("Configure credentials in .streamlit/secrets.toml")
     
-    classes = ['Malnourish', 'Nourished']
-    selected_class = st.sidebar.radio('Select an option', classes)
-    st.image('images/Node8.PNG')
-    st.sidebar.header('Data Collection App')
-    st.sidebar.image('images/img.PNG')
+    # Main content
+    st.title("🏥 Malnutrition Data Collection")
+    st.markdown(f"### Collecting data for {selected_class} patient")
     
-    st.sidebar.text(f'You selected {selected_class}')
-
-    if selected_class == 'Malnourish':
-        st.subheader(f':red[You are Collecting Data for {selected_class} Children]')
-        # Input form
-        with st.form("user_form",clear_on_submit=True):
-            st.subheader("User Information")
-            age = st.number_input(":red[Age in months]", min_value=0.0, max_value=150.0, value=0.0, step=0.5, key="age")
-            weight = st.number_input(":red[Weight in (kg)]", min_value=0, max_value=1000, step=1, value=0, key="weight")
-            height = st.number_input(":red[Height in (cm)]", min_value=0, max_value=3000, value=0, step=1, key="height")
-            hand_circumference = st.number_input(":red[Mid Lower Hand Circumference (cm)]", min_value=0, max_value=100, value=0, step=1, key="hand_circumference")
-            skin_type = st.selectbox(":red[Select Skin Type]", ['Dry and scaly', 'Rash'], key="skin_type")
-            hair_type = st.selectbox(":red[Select Hair Type]", ['Dry flaky scalp', 'Thin sparse hair'], key="hair_type")
-            eyes_type = st.selectbox(":red[Select Eye Type]", ['Jaundice', 'Dry sour eyes'], key="eyes_type")
-            oedema = st.selectbox(":red[Oedema]", ['yes', 'no'], key="odeama")
-            angular_stomatitis = st.selectbox(":red[Angular]", ['yes', 'no'], key="angular_stomatitis")
-            cheilosis = st.selectbox(":red[Cheilosis]", ['yes', 'no'],key='cheilosis')
-            bowlegs = st.selectbox(":red[Bowlegs]", ['yes', 'no'], key="bowlegs")
-            location = st.text_input(":red[Location]", key="location")
-            type_of_malnutrition = st.text_input(":red[Type of malnutrition]", key="type_of_malnutrition")
-            face_image = st.file_uploader("Face Image", key="face_image")
-            if face_image:
-                st.image(face_image,width=300,caption='image of a face')
-            hair_image = st.file_uploader("Hair Image", key="hair_image")
-            if hair_image:
-                st.image(hair_image,width=300,caption='image of  hair')
-            hands_image = st.file_uploader("Hands Image", key="hands_image")
-            if hands_image:
-                st.image(hands_image,width=300,caption='image of hands')
-            leg_image = st.file_uploader("Leg Image", key="leg_image")
-            if leg_image:
-                st.image(leg_image,width=300,caption='image of leg')
-
-            submitted = st.form_submit_button("Submit", type='primary')
-            if submitted:
-                # Validate if all fields are filled
-                if not (age and weight and height and hand_circumference and skin_type and hair_type and eyes_type and location and face_image and hair_image and hands_image and leg_image):
-                    st.error("Please fill in all the fields")
-                    return
-
-                # Upload images to Cloudinary
-                with st.spinner("Uploading images to Cloudinary..."):
-                    face_image_url = upload_image_to_cloudinary(face_image, folder="nutri-scan/malnourish/face")
-                    hair_image_url = upload_image_to_cloudinary(hair_image, folder="nutri-scan/malnourish/hair")
-                    hands_image_url = upload_image_to_cloudinary(hands_image, folder="nutri-scan/malnourish/hands")
-                    leg_image_url = upload_image_to_cloudinary(leg_image, folder="nutri-scan/malnourish/legs")
-
-                # Check if all images were uploaded successfully
-                if not all([face_image_url, hair_image_url, hands_image_url, leg_image_url]):
-                    st.error("Failed to upload one or more images. Please try again.")
-                    return
-
-                # Save user data to the database
-                data = {
-                    "age": age,
-                    "weight": weight,
-                    "height": height,
-                    "mid_lower_hand_circumference": hand_circumference,
-                    "skin_type": skin_type,
-                    "hair_type": hair_type,
-                    "eyes_type": eyes_type,
-                    "oedema":oedema,
-                    "angular_stomatitis":angular_stomatitis,
-                    "cheilosis":cheilosis,
-                    "bowlegs":bowlegs,
-                    "location": location,
-                    'type_of_malnutrition':type_of_malnutrition,
-                    "face_image_url": face_image_url,
-                    "hair_image_url": hair_image_url,
-                    "hands_image_url": hands_image_url,
-                    "leg_image_url": leg_image_url
-                }
-                with SessionLocal() as session:
-                    user = Malnurish_data(**data)
-                    session.add(user)
-                    session.commit()
-
-                st.success(f"User data saved successfully! to {selected_class} table in the database")
-                st.info("Images have been uploaded to Cloudinary and URLs stored in the database.")
+    # Create tabs for better organization
+    tab1, tab2, tab3 = st.tabs(["📋 Basic Information", "🔍 Medical Indicators", "📸 Images"])
     
-    
-    
-    # For nourish children 
-    if selected_class == 'Nourished':
-        st.subheader(f'You are Collecting Data for {selected_class} Children')
-        # Input form
-        with st.form("user_form",clear_on_submit=True):
-            st.subheader("User Information")
-            age = st.number_input("Age in months", min_value=0.0, max_value=150.0, value=0.0, step=0.5, key="age")
-            weight = st.number_input("Weight in (kg)", min_value=0, max_value=1000, step=1, value=0, key="weight")
-            height = st.number_input("Height in (cm)", min_value=0, max_value=3000, value=0, step=1, key="height")
-            hand_circumference = st.number_input("Mid Lower Hand Circumference (cm)", min_value=0, max_value=100, value=0, step=1, key="hand_circumference")
-            skin_type = st.selectbox("Select Skin Type", ['Dry and scaly', 'Rash'], key="skin_type")
-            hair_type = st.selectbox("Select Hair Type", ['Dry flaky scalp', 'Thin sparse hair'], key="hair_type")
-            eyes_type = st.selectbox("Select Eye Type", ['Jaundice', 'Dry sour eyes'], key="eyes_type")
-            oedema = st.selectbox("Oedema", ['yes', 'no'], key="odeama")
-            angular_stomatitis = st.selectbox("Angular", ['yes', 'no'], key="angular_stomatitis")
-            cheilosis = st.selectbox("Cheilosis", ['yes', 'no'],key='cheilosis')
-            bowlegs = st.selectbox("Bowlegs", ['yes', 'no'], key="bowlegs")
-            location = st.text_input("Location", key="location")
-            face_image = st.file_uploader("Face Image", key="face_image")
-            if face_image:
-                st.image(face_image,width=300,caption='image of a face')
-            hair_image = st.file_uploader("Hair Image", key="hair_image")
-            if hair_image:
-                st.image(hair_image,width=300,caption='image of  hair')
-            hands_image = st.file_uploader("Hands Image", key="hands_image")
-            if hands_image:
-                st.image(hands_image,width=300,caption='image of hands')
-            leg_image = st.file_uploader("Leg Image", key="leg_image")
-            if leg_image:
-                st.image(leg_image,width=300,caption='image of leg')
+    with st.form("user_form", clear_on_submit=True):
+        with tab1:
+            col1, col2 = st.columns(2)
+            with col1:
+                age = st.number_input(
+                    "Age (months)", 
+                    min_value=0.0, 
+                    max_value=150.0, 
+                    value=0.0, 
+                    step=0.5,
+                    help="Enter the patient's age in months"
+                )
+                
+                weight = st.number_input(
+                    "Weight (kg)", 
+                    min_value=0.0, 
+                    max_value=100.0, 
+                    value=0.0, 
+                    step=0.1,
+                    help="Enter the patient's weight in kilograms"
+                )
+            
+            with col2:
+                height = st.number_input(
+                    "Height (cm)", 
+                    min_value=0.0, 
+                    max_value=200.0, 
+                    value=0.0, 
+                    step=0.1,
+                    help="Enter the patient's height in centimeters"
+                )
+                
+                hand_circumference = st.number_input(
+                    "Mid Lower Hand Circumference (cm)", 
+                    min_value=0.0, 
+                    max_value=50.0, 
+                    value=0.0, 
+                    step=0.1,
+                    help="Measure and enter the mid-lower arm circumference"
+                )
+            
+            location = st.text_input(
+                "Location",
+                help="Enter the location where data is being collected"
+            )
+        
+        with tab2:
+            col1, col2 = st.columns(2)
+            with col1:
+                skin_type = st.selectbox(
+                    "Skin Condition",
+                    ['Dry and scaly', 'Rash'],
+                    help="Select the observed skin condition"
+                )
+                
+                hair_type = st.selectbox(
+                    "Hair Condition",
+                    ['Dry flaky scalp', 'Thin sparse hair'],
+                    help="Select the observed hair condition"
+                )
+                
+                eyes_type = st.selectbox(
+                    "Eye Condition",
+                    ['Jaundice', 'Dry sour eyes'],
+                    help="Select the observed eye condition"
+                )
+            
+            with col2:
+                oedema = st.selectbox(
+                    "Oedema Present",
+                    ['no', 'yes'],
+                    help="Select if oedema is present"
+                )
+                
+                angular_stomatitis = st.selectbox(
+                    "Angular Stomatitis",
+                    ['no', 'yes'],
+                    help="Select if angular stomatitis is present"
+                )
+                
+                cheilosis = st.selectbox(
+                    "Cheilosis",
+                    ['no', 'yes'],
+                    help="Select if cheilosis is present"
+                )
+                
+                bowlegs = st.selectbox(
+                    "Bowlegs Present",
+                    ['no', 'yes'],
+                    help="Select if bowlegs condition is present"
+                )
+            
+            if selected_class == 'Malnourish':
+                type_of_malnutrition = st.text_input(
+                    "Type of Malnutrition",
+                    help="Specify the type of malnutrition observed"
+                )
+        
+        with tab3:
+            st.markdown("### Upload Patient Images")
+            st.info("Please upload clear, well-lit images for accurate documentation")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                face_image = st.file_uploader(
+                    "Face Image",
+                    type=['png', 'jpg', 'jpeg'],
+                    help="Upload a clear front-facing image",
+                    key="face_image"
+                )
+                
+                hair_image = st.file_uploader(
+                    "Hair Image",
+                    type=['png', 'jpg', 'jpeg'],
+                    help="Upload a clear image of the scalp/hair",
+                    key="hair_image"
+                )
+            
+            with col2:
+                hands_image = st.file_uploader(
+                    "Hands Image",
+                    type=['png', 'jpg', 'jpeg'],
+                    help="Upload a clear image of both hands",
+                    key="hands_image"
+                )
+                
+                leg_image = st.file_uploader(
+                    "Leg Image",
+                    type=['png', 'jpg', 'jpeg'],
+                    help="Upload a clear image of the legs",
+                    key="leg_image"
+                )
+        
+        # Preview section for all images
+        if any([face_image, hair_image, hands_image, leg_image]):
+            st.markdown("---")
+            create_image_preview_section()
+        
+        st.markdown("---")
+        submitted = st.form_submit_button("💾 Save Patient Data", type='primary', use_container_width=True)
+        
+        if submitted:
+            # Collect form data
+            form_data = {
+                'age': age if age is not None else None,
+                'weight': weight if weight is not None else None,
+                'height': height if height is not None else None,
+                'mid_lower_hand_circumference': hand_circumference if hand_circumference is not None else None,
+                'location': location,
+                'skin_type': skin_type,
+                'hair_type': hair_type,
+                'eyes_type': eyes_type,
+                'oedema': oedema,
+                'angular_stomatitis': angular_stomatitis,
+                'cheilosis': cheilosis,
+                'bowlegs': bowlegs
+            }
+            
+            # Validate required fields
+            validation_errors = validate_required_fields(form_data)
+            if validation_errors:
+                for error in validation_errors:
+                    st.error(error)
+                return
+            
+            # Validate image uploads
+            if not all([face_image, hair_image, hands_image, leg_image]):
+                st.error("Please upload all required images")
+                return
+            
+            try:
+                with st.spinner("📤 Uploading images and saving data..."):
+                    # Upload images to Cloudinary
+                    folder_prefix = "nutri-scan/malnourish" if selected_class == "Malnourish" else "nutri-scan/nourished"
+                    
+                    face_image_url = upload_image_to_cloudinary(face_image, folder=f"{folder_prefix}/face")
+                    hair_image_url = upload_image_to_cloudinary(hair_image, folder=f"{folder_prefix}/hair")
+                    hands_image_url = upload_image_to_cloudinary(hands_image, folder=f"{folder_prefix}/hands")
+                    leg_image_url = upload_image_to_cloudinary(leg_image, folder=f"{folder_prefix}/legs")
+                    
+                    if not all([face_image_url, hair_image_url, hands_image_url, leg_image_url]):
+                        st.error("Failed to upload one or more images. Please try again.")
+                        return
+                    
+                    # Add image URLs to form data
+                    form_data.update({
+                        'face_image_url': face_image_url,
+                        'hair_image_url': hair_image_url,
+                        'hands_image_url': hands_image_url,
+                        'leg_image_url': leg_image_url
+                    })
+                    
+                    # Add type of malnutrition if applicable
+                    if selected_class == 'Malnourish':
+                        form_data['type_of_malnutrition'] = type_of_malnutrition
+                    
+                    # Save to database
+                    with SessionLocal() as session:
+                        if selected_class == 'Malnourish':
+                            user = Malnurish_data(**form_data)
+                        else:
+                            user = Nurish_data(**form_data)
+                        session.add(user)
+                        session.commit()
+                    
+                    st.success("✅ Patient data saved successfully!")
+                    st.balloons()
+                    
+                    # Reset form progress
+                    st.session_state.form_progress = 0
+                    
+            except Exception as e:
+                st.error(f"An error occurred: {str(e)}")
+                st.info("Please try again or contact support if the problem persists.")
 
-            submitted = st.form_submit_button("Submit", type='primary')
-            if submitted:
-                # Validate if all fields are filled
-                if not (age and weight and height and hand_circumference and skin_type and hair_type and eyes_type and location and face_image and hair_image and hands_image and leg_image):
-                    st.error("Please fill in all the fields")
-                    return
-
-                # Upload images to Cloudinary
-                with st.spinner("Uploading images to Cloudinary..."):
-                    face_image_url = upload_image_to_cloudinary(face_image, folder="nutri-scan/nourished/face")
-                    hair_image_url = upload_image_to_cloudinary(hair_image, folder="nutri-scan/nourished/hair")
-                    hands_image_url = upload_image_to_cloudinary(hands_image, folder="nutri-scan/nourished/hands")
-                    leg_image_url = upload_image_to_cloudinary(leg_image, folder="nutri-scan/nourished/legs")
-
-                # Check if all images were uploaded successfully
-                if not all([face_image_url, hair_image_url, hands_image_url, leg_image_url]):
-                    st.error("Failed to upload one or more images. Please try again.")
-                    return
-
-                # Save user data to the database
-                data = {
-                    "age": age,
-                    "weight": weight,
-                    "height": height,
-                    "mid_lower_hand_circumference": hand_circumference,
-                    "skin_type": skin_type,
-                    "hair_type": hair_type,
-                    "eyes_type": eyes_type,
-                    "oedema":oedema,
-                    "angular_stomatitis":angular_stomatitis,
-                    "cheilosis":cheilosis,
-                    "bowlegs":bowlegs,
-                    "location": location,
-                    "face_image_url": face_image_url,
-                    "hair_image_url": hair_image_url,
-                    "hands_image_url": hands_image_url,
-                    "leg_image_url": leg_image_url
-                }
-                with SessionLocal() as session:
-                    user = Nurish_data(**data)
-                    session.add(user)
-                    session.commit()
-
-                st.success(f"User data saved successfully! to {selected_class} table in the database")
-                st.info("Images have been uploaded to Cloudinary and URLs stored in the database.")
-      
 if __name__ == "__main__":
     main()
