@@ -32,7 +32,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 # Model path
 # trained_model_path = r'C:\Users\TechWatt\Desktop\techwatt\Nutri-Scan\model\malnutrition_model.pt'
 # Model path
-trained_model_path = r'model/malnutrition_model.pt'
+trained_model_path = 'model/malnutrition_model.pt'
 
 # Model definition (must match the one used during training)
 class MalnutritionModel(nn.Module):
