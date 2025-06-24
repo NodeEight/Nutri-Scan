@@ -94,7 +94,4 @@ async def predict(file: UploadFile = File(...)):
 
 @app.get("/")
 def root():
-    return {"message": "Malnutrition Model API. Use /predict to POST an image."}
-
-# if __name__ == "__main__":
-#     uvicorn.run("main:app", host="1.2.7.0.1", port=8000, reload=True)
+    return {"message": "Malnutrition Model API. Use /predict to POST an image and get Prediction."}
