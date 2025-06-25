@@ -5,7 +5,7 @@ import os
 
 path = r"C:\Users\TechWatt\Desktop\nutriscan dataset\nourished"
 
-unwantedExtention = 'avif'
+unwantedExtention = 'webp'
 for imglist in os.listdir(path):
     
     d = imglist.split('.')
