@@ -7,6 +7,8 @@ from cloudinary_utils import upload_image_to_cloudinary, test_cloudinary_connect
 import os
 from dotenv import load_dotenv
 from sqlalchemy import text
+from PIL import Image
+
 
 # Load environment variables
 load_dotenv()
@@ -120,7 +122,11 @@ def create_image_preview_section():
         with cols[idx]:
             st.markdown(f"**{label}**")
             if image:
-                st.image(image, width=150, caption=f'{label} image')
+                try: # For file uploader
+                    st.image(image, width=150, caption=f'{label} image')
+                except: # For camera input
+                    img = Image.open(image)
+                    st.image(img, width=150, caption=f'{label} image')
             else:
                 st.markdown("*No image uploaded*")
 
@@ -344,12 +350,14 @@ def main():
             st.markdown("- Stand child 2-3 feet from camera")
             st.markdown("- Ensure good lighting")
             st.markdown("- Child should be relaxed")    
-            front_view_image = st.file_uploader(
-                "Front View Image",
-                type=['png', 'jpg', 'jpeg'],
-                help="Upload a clear front-facing image",
-                key="front_view_image"
-            )
+            # front_view_image = st.file_uploader(
+            #     "Front View Image",
+            #     type=['png', 'jpg', 'jpeg'],
+            #     help="Upload a clear front-facing image",
+            #     key="front_view_image"
+            # )
+
+            front_view_image = st.camera_input("Front View Image", key="front_view_image")
 
             st.markdown("### Face Close-up")
             st.markdown("Clear view of facial features and eyes")
@@ -357,12 +365,13 @@ def main():
             st.markdown("- Focus on eyes and mouth")
             st.markdown("- Check for pale conjunctiva")
             st.markdown("- Look for angular cheilitis")
-            face_image = st.file_uploader(
-                "Face Image",
-                type=['png', 'jpg', 'jpeg'],
-                help="Upload a clear Face Close-up image",
-                key="face_image"
-            )
+            # face_image = st.file_uploader(
+            #     "Face Image",
+            #     type=['png', 'jpg', 'jpeg'],
+            #     help="Upload a clear Face Close-up image",
+            #     key="face_image"
+            # )
+            face_image = st.camera_input("Face Image", key="face_image")
             st.markdown("### Back View")
             st.markdown("Posterior view for spine and shoulder assessment")
             st.markdown("**Optional**")
@@ -370,12 +379,13 @@ def main():
             st.markdown("- Child facing away from camera")
             st.markdown("- Check spine alignment")
             st.markdown("- Full body visible")
-            back_view_image = st.file_uploader(
-                "Back View Image",
-                type=['png', 'jpg', 'jpeg'],
-                help="Upload a clear Back View image",
-                key="back_view_image"
-            )
+            # back_view_image = st.file_uploader(
+            #     "Back View Image",
+            #     type=['png', 'jpg', 'jpeg'],
+            #     help="Upload a clear Back View image",
+            #     key="back_view_image"
+            # )
+            back_view_image = st.camera_input("Back View Image", key="back_view_image")
 
             st.markdown("### Hands/Nails")
             st.markdown("Palm and nail examination")
@@ -384,12 +394,13 @@ def main():
             st.markdown("- Both palms visible")
             st.markdown("- Check for pallor")
             st.markdown("- Nail condition assessment")
-            hands_image = st.file_uploader(
-                "Hands/Nails Image",
-                type=['png', 'jpg', 'jpeg'],
-                help="Upload a clear image of the Hands/Nails",
-                key="hands_image"
-            )
+            # hands_image = st.file_uploader(
+            #     "Hands/Nails Image",
+            #     type=['png', 'jpg', 'jpeg'],
+            #     help="Upload a clear image of the Hands/Nails",
+            #     key="hands_image"
+            # )
+            hands_image = st.camera_input("Hands/Nails Image", key="hands_image")
 
         with col2:
             st.markdown("### Side Profile")
@@ -398,12 +409,13 @@ def main():
             st.markdown("- Profile view from left side")
             st.markdown("- Show body proportions")
             st.markdown("- Arms should be visible")
-            side_profile_image = st.file_uploader(
-                "Side Profile Image",
-                type=['png', 'jpg', 'jpeg'],
-                help="Upload a clear image of the Side Profile",
-                key="side_profile_image"
-            )
+            # side_profile_image = st.file_uploader(
+            #     "Side Profile Image",
+            #     type=['png', 'jpg', 'jpeg'],
+            #     help="Upload a clear image of the Side Profile",
+            #     key="side_profile_image"
+            # )
+            side_profile_image = st.camera_input("Side Profile Image", key="side_profile_image")
 
             st.markdown("###  Arm (MUAC)")
             st.markdown("Arm for MUAC measurement validation")
@@ -412,12 +424,13 @@ def main():
             st.markdown("- Left upper arm")
             st.markdown("- Show muscle mass")
             st.markdown("- Include measurement tape if available")
-            arm_muac_image = st.file_uploader(
-                "Arm (MUAC) Image",
-                type=['png', 'jpg', 'jpeg'],
-                help="Upload a clear image of the Arm (MUAC)",
-                key="arm_muac_image"
-            )
+            # arm_muac_image = st.file_uploader(
+            #     "Arm (MUAC) Image",
+            #     type=['png', 'jpg', 'jpeg'],
+            #     help="Upload a clear image of the Arm (MUAC)",
+            #     key="arm_muac_image"
+            # )
+            arm_muac_image = st.camera_input("Arm (MUAC) Image", key="arm_muac_image")
             
             st.markdown("### Legs/Feet")
             st.markdown("Lower extremities for edema check")
@@ -426,12 +439,13 @@ def main():
             st.markdown("- Check for ankle swelling")
             st.markdown("- Assess muscle wasting")
             st.markdown("- Look for skin changes")
-            leg_image = st.file_uploader(
-                "Legs/Feet Image",
-                type=['png', 'jpg', 'jpeg'],
-                help="Upload a clear image of the legs/feet",
-                key="leg_image"
-            )
+            # leg_image = st.file_uploader(
+            #     "Legs/Feet Image",
+            #     type=['png', 'jpg', 'jpeg'],
+            #     help="Upload a clear image of the legs/feet",
+            #     key="leg_image"
+            # )
+            leg_image = st.camera_input("Legs/Feet Image", key="leg_image")
         
         # Preview section for all images
         if any([front_view_image, face_image, arm_muac_image, side_profile_image, hands_image, leg_image, back_view_image]):
