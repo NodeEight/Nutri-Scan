@@ -27,6 +27,10 @@ def check_db_connection():
     except Exception as e:
         return False, f"Database connection failed: {str(e)}"
 
+def yes_no(key):
+    return 'Yes' if st.session_state.get(key) else 'No'
+
+
 # Page configuration
 st.set_page_config(
     page_title="Nutri-Scan Data Collection",
@@ -158,6 +162,10 @@ def main():
         st.markdown("## 📋 Basic Information")
         st.markdown("---")
         
+        name = st.text_input(
+            "Patient Name",
+            help="Enter the patient's full name"
+        )
         col1, col2 = st.columns(2)
         with col1:
             age = st.number_input(
@@ -177,7 +185,11 @@ def main():
                 step=0.1,
                 help="Enter the patient's weight in kilograms"
             )
-        
+            gender = st.selectbox(
+                "Gender",
+                ['Male', 'Female', 'Other'],
+                help="Select the patient's gender"
+            )
         with col2:
             height = st.number_input(
                 "Height (cm)", 
@@ -196,61 +208,119 @@ def main():
                 step=0.1,
                 help="Measure and enter the mid-lower arm circumference"
             )
-        
-        location = st.text_input(
+            location = st.text_input(
             "Location",
             help="Enter the location where data is being collected"
         )
         
+       # Patient Details Section
+        st.markdown("## 🏷️ Patient Details")
+        st.markdown("---")
+        st.info("Please provide accurate information") 
+        col1, col2 = st.columns(2)
+        with col1:
+            caregiver_name = st.text_input(
+                "Primary Caregiver's Full Name",
+                help="Enter the full name of the primary caregiver"
+            )
+            phone_number = st.text_input(
+                "Primary Phone Number",
+                help="This will be used as the unique patient ID"
+            )
+        with col2:
+            secondary_contact = st.text_input(
+                "Secondary Contact (Accountability Partner)",
+                help="Alternative contact for follow-ups and support"
+            )  
+
+        # Patient Details Section
+        st.markdown("## 🏷️ Patient Details")
+        st.markdown("---")
+        st.info("Please provide accurate information") 
+        col1, col2 = st.columns(2)
+        with col1:
+            region = st.selectbox(
+                "Region",
+                ["Ahafo", "Ashanti", "Bono", "Bono East", "Central", "Eastern", "Greater Accra", "North East", "Northern", "Oti", "Savannah", "Upper East", "Upper West", "Volta", "Western",  "Western North"],
+                help="Enter the region"
+            )
+            town = st.text_input(
+                "Town/City",
+                help="Enter the town or city"
+            )
+        with col2:
+            community = st.selectbox(
+                "Community/Location",
+                ["Urban Center", "Peri-Rural Community", "Rural Community", "Coastal Area Fishing Community", "Farming Community"],
+                help="Enter the community or location"
+            )  
+            health_facility = st.selectbox(
+                "Health Facility",
+                ["CHPS Compound", "Regional Hospital", "District Hospital", "Tertiary (Teaching) Hospital",  "Health Center and Clinic", "Maternity Home", "Mobile Clinic", "Other"],
+                help="Enter the health facility"
+            )
+
+            
         # Medical Indicators Section
         st.markdown("## 🔍 Medical Indicators")
         st.markdown("---")
+
+    # Physical Measurements
+        # Enter precise measurements
         
+        st.markdown("### Physical Measurements")
+        st.markdown("---")
+        st.info("Enter precise measurements for accurate assessment")
         col1, col2 = st.columns(2)
+
+       
+        hemoglobin = st.number_input(
+            "Hemoglobin (g/dL)",
+            min_value=0.0,
+            max_value=20.0,
+            value=0.0,
+            step=0.1,
+            help="Enter the hemoglobin level in grams per deciliter"
+        )
+        st.markdown("**Note:** Fields marked with * are mandatory")
+
+        # Physical Signs Section
+        st.markdown("### Physical Signs")
+        st.markdown("---")
+        st.info("Select all that apply")
+        col1, col2 = st.columns(2)
+
         with col1:
-            skin_type = st.selectbox(
-                "Skin Condition",
-                ['Dry and scaly', 'Rash'],
-                help="Select the observed skin condition"
-            )
-            
-            hair_type = st.selectbox(
-                "Hair Condition",
-                ['Dry flaky scalp', 'Thin sparse hair'],
-                help="Select the observed hair condition"
-            )
-            
-            eyes_type = st.selectbox(
-                "Eye Condition",
-                ['Jaundice', 'Dry sour eyes'],
-                help="Select the observed eye condition"
-            )
-        
+            st.markdown("#### Physical Signs")
+            st.checkbox("Swelling in feet/ankles (edema)")
+            st.checkbox("Pale conjunctiva (eyes)")
+            st.checkbox("Angular cracks on mouth (cheilitis)")
+            st.checkbox("Swollen gums, bleeding")
+            st.checkbox("Dry, scaly skin")
+            st.checkbox("Potbelly appearance")
+            st.checkbox("Thin upper arms / visible ribs")
+            st.checkbox("Goiter (neck swelling)")
+
         with col2:
-            oedema = st.selectbox(
-                "Oedema Present",
-                ['no', 'yes'],
-                help="Select if oedema is present"
-            )
-            
-            angular_stomatitis = st.selectbox(
-                "Angular Stomatitis",
-                ['no', 'yes'],
-                help="Select if angular stomatitis is present"
-            )
-            
-            cheilosis = st.selectbox(
-                "Cheilosis",
-                ['no', 'yes'],
-                help="Select if cheilosis is present"
-            )
-            
-            bowlegs = st.selectbox(
-                "Bowlegs Present",
-                ['no', 'yes'],
-                help="Select if bowlegs condition is present"
-            )
-        
+            st.markdown("#### Vision & Development")
+            st.checkbox("Bitot's spots / Night blindness")
+            st.checkbox("Delayed developmental milestones")
+            st.checkbox("Glossy or pale tongue")
+            st.markdown("#### Behavioral Signs")
+            st.checkbox("Lethargy, irritability")
+            st.checkbox("Poor appetite / feeding refusal")
+            st.checkbox("Brittle / Discolored hair")
+            st.checkbox("Frequent diarrhea / infections")
+
+        # Additional Observations Section
+        st.markdown("### Additional Observations")
+        st.markdown("---")
+        custom_notes = st.text_area(
+            "Custom Notes",
+            help="Enter any additional observations or notes"
+        )
+
+        # Type of Malnutrition (if applicable)
         if selected_class == 'Malnourish':
             type_of_malnutrition = st.text_input(
                 "Type of Malnutrition",
@@ -264,37 +334,103 @@ def main():
         
         col1, col2 = st.columns(2)
         with col1:
+            st.markdown("### Front View")
+            st.markdown("Child facing camera, full body visible, arms at sides")
+            st.markdown("**Guidelines:**")
+            st.markdown("- Stand child 2-3 feet from camera")
+            st.markdown("- Ensure good lighting")
+            st.markdown("- Child should be relaxed")    
+            front_view_image = st.file_uploader(
+                "Front View Image",
+                type=['png', 'jpg', 'jpeg'],
+                help="Upload a clear front-facing image",
+                key="front_view_image"
+            )
+
+            st.markdown("### Face Close-up")
+            st.markdown("Clear view of facial features and eyes")
+            st.markdown("**Guidelines:**")
+            st.markdown("- Focus on eyes and mouth")
+            st.markdown("- Check for pale conjunctiva")
+            st.markdown("- Look for angular cheilitis")
             face_image = st.file_uploader(
                 "Face Image",
                 type=['png', 'jpg', 'jpeg'],
-                help="Upload a clear front-facing image",
+                help="Upload a clear Face Close-up image",
                 key="face_image"
             )
-            
-            hair_image = st.file_uploader(
-                "Hair Image",
+            st.markdown("### Back View")
+            st.markdown("Posterior view for spine and shoulder assessment")
+            st.markdown("**Optional**")
+            st.markdown("**Guidelines:**")
+            st.markdown("- Child facing away from camera")
+            st.markdown("- Check spine alignment")
+            st.markdown("- Full body visible")
+            back_view_image = st.file_uploader(
+                "Back View Image",
                 type=['png', 'jpg', 'jpeg'],
-                help="Upload a clear image of the scalp/hair",
-                key="hair_image"
+                help="Upload a clear Back View image",
+                key="back_view_image"
             )
-        
-        with col2:
+
+            st.markdown("### Hands/Nails")
+            st.markdown("Palm and nail examination")
+            st.markdown("**Optional**")
+            st.markdown("**Guidelines:**")
+            st.markdown("- Both palms visible")
+            st.markdown("- Check for pallor")
+            st.markdown("- Nail condition assessment")
             hands_image = st.file_uploader(
-                "Hands Image",
+                "Hands/Nails Image",
                 type=['png', 'jpg', 'jpeg'],
-                help="Upload a clear image of both hands",
+                help="Upload a clear image of the Hands/Nails",
                 key="hands_image"
             )
-            
-            leg_image = st.file_uploader(
-                "Leg Image",
+
+        with col2:
+            st.markdown("### Side Profile")
+            st.markdown("Side view showing posture and development")
+            st.markdown("**Guidelines:**")
+            st.markdown("- Profile view from left side")
+            st.markdown("- Show body proportions")
+            st.markdown("- Arms should be visible")
+            side_profile_image = st.file_uploader(
+                "Side Profile Image",
                 type=['png', 'jpg', 'jpeg'],
-                help="Upload a clear image of the legs",
+                help="Upload a clear image of the Side Profile",
+                key="side_profile_image"
+            )
+
+            st.markdown("###  Arm (MUAC)")
+            st.markdown("Arm for MUAC measurement validation")
+            st.markdown("**Required**")
+            st.markdown("**Guidelines:**")
+            st.markdown("- Left upper arm")
+            st.markdown("- Show muscle mass")
+            st.markdown("- Include measurement tape if available")
+            arm_muac_image = st.file_uploader(
+                "Arm (MUAC) Image",
+                type=['png', 'jpg', 'jpeg'],
+                help="Upload a clear image of the Arm (MUAC)",
+                key="arm_muac_image"
+            )
+            
+            st.markdown("### Legs/Feet")
+            st.markdown("Lower extremities for edema check")
+            st.markdown("**Optional**")
+            st.markdown("**Guidelines:**")
+            st.markdown("- Check for ankle swelling")
+            st.markdown("- Assess muscle wasting")
+            st.markdown("- Look for skin changes")
+            leg_image = st.file_uploader(
+                "Legs/Feet Image",
+                type=['png', 'jpg', 'jpeg'],
+                help="Upload a clear image of the legs/feet",
                 key="leg_image"
             )
         
         # Preview section for all images
-        if any([face_image, hair_image, hands_image, leg_image]):
+        if any([front_view_image, face_image, arm_muac_image, side_profile_image, hands_image, leg_image, back_view_image]):
             st.markdown("### Image Preview")
             st.markdown("---")
             create_image_preview_section()
@@ -311,15 +447,26 @@ def main():
                 'height': height if height is not None else None,
                 'mid_lower_hand_circumference': hand_circumference if hand_circumference is not None else None,
                 'location': location,
-                'skin_type': skin_type,
-                'hair_type': hair_type,
-                'eyes_type': eyes_type,
-                'oedema': oedema,
-                'angular_stomatitis': angular_stomatitis,
-                'cheilosis': cheilosis,
-                'bowlegs': bowlegs
+                'name': name,
+                "gender": gender,
+                "caregiver_name": caregiver_name,
+                "phone_number": phone_number,
+                "secondary_contact": secondary_contact,
+                "region": region,
+                "town": town,
+                "community": community,
+                "custom_notes": custom_notes,
+                "health_facility": health_facility,
+                'hemoglobin': hemoglobin,
+                'oedema': yes_no('Swelling in feet/ankles (edema)'),
+                'angular_stomatitis': yes_no('Angular cracks on mouth (cheilitis)'),
+                'cheilosis': yes_no('Glossy or pale tongue'),
+                'bowlegs': yes_no('Potbelly appearance'),
+                'skin_type': 'Dry, scaly skin' if st.session_state.get('Dry, scaly skin') else 'Normal',
+                'hair_type': 'Brittle / Discolored hair' if st.session_state.get('Brittle / Discolored hair') else 'Normal',
+                'eyes_type': 'Pale conjunctiva' if st.session_state.get('Pale conjunctiva (eyes)') else 'Normal',
             }
-            
+
             # Validate required fields
             validation_errors = validate_required_fields(form_data)
             if validation_errors:
@@ -328,7 +475,7 @@ def main():
                 return
             
             # Validate image uploads
-            if not all([face_image, hair_image, hands_image, leg_image]):
+            if not all([front_view_image, face_image, arm_muac_image, hands_image, side_profile_image]):
                 st.error("Please upload all required images")
                 return
             
@@ -338,20 +485,26 @@ def main():
                     folder_prefix = "nutri-scan/malnourish" if selected_class == "Malnourish" else "nutri-scan/nourished"
                     
                     face_image_url = upload_image_to_cloudinary(face_image, folder=f"{folder_prefix}/face")
-                    hair_image_url = upload_image_to_cloudinary(hair_image, folder=f"{folder_prefix}/hair")
-                    hands_image_url = upload_image_to_cloudinary(hands_image, folder=f"{folder_prefix}/hands")
-                    leg_image_url = upload_image_to_cloudinary(leg_image, folder=f"{folder_prefix}/legs")
-                    
-                    if not all([face_image_url, hair_image_url, hands_image_url, leg_image_url]):
+                    front_view_image_url = upload_image_to_cloudinary(front_view_image, folder=f"{folder_prefix}/front_view")
+                    arm_muac_image_url = upload_image_to_cloudinary(arm_muac_image, folder=f"{folder_prefix}/arms")
+                    side_profile_image_url = upload_image_to_cloudinary(side_profile_image, folder=f"{folder_prefix}/side_profile")
+                    hands_image_url = upload_image_to_cloudinary(hands_image, folder=f"{folder_prefix}/hands") if hands_image else None
+                    leg_image_url = upload_image_to_cloudinary(leg_image, folder=f"{folder_prefix}/legs") if leg_image else None
+                    back_view_image_url = upload_image_to_cloudinary(back_view_image, folder=f"{folder_prefix}/back") if back_view_image else None
+
+                    if not all([face_image_url, front_view_image_url, side_profile_image_url, arm_muac_image_url]):
                         st.error("Failed to upload one or more images. Please try again.")
                         return
                     
                     # Add image URLs to form data
                     form_data.update({
                         'face_image_url': face_image_url,
-                        'hair_image_url': hair_image_url,
+                        'front_view_image_url': front_view_image_url,
+                        'arm_muac_image_url': arm_muac_image_url,
                         'hands_image_url': hands_image_url,
-                        'leg_image_url': leg_image_url
+                        'leg_image_url': leg_image_url,
+                        'back_view_image_url': back_view_image_url,
+                        'side_profile_image_url': side_profile_image_url
                     })
                     
                     # Add type of malnutrition if applicable
