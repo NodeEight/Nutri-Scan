@@ -101,15 +101,21 @@ def validate_required_fields(data):
 def create_image_preview_section():
     """Create a section to preview all uploaded images"""
     st.markdown("### 📸 Image Preview")
-    cols = st.columns(4)
     
     images = {
-        'Face': st.session_state.get('face_image'),
-        'Hair': st.session_state.get('hair_image'),
-        'Hands': st.session_state.get('hands_image'),
-        'Legs': st.session_state.get('leg_image')
+        'Face Close-Up': st.session_state.get('face_image'),
+        'Front View': st.session_state.get('front_view_image'),
+        'Side Profile': st.session_state.get('side_profile_image'),
+        'Arm (MUAC)': st.session_state.get('arm_muac_image')
     }
-    
+    if st.session_state.get('hands_image'):
+        images['Hands/Nails'] = st.session_state.get('hands_image')
+    if st.session_state.get('leg_image'):
+        images['Legs/Feet'] = st.session_state.get('leg_image')
+    if st.session_state.get('back_view_image'):
+        images['Back View'] = st.session_state.get('back_view_image')
+
+    cols = st.columns(len(images))
     for idx, (label, image) in enumerate(images.items()):
         with cols[idx]:
             st.markdown(f"**{label}**")
@@ -260,19 +266,12 @@ def main():
                 help="Enter the health facility"
             )
 
-            
-        # Medical Indicators Section
-        st.markdown("## 🔍 Medical Indicators")
+
+        # Biochemical Indicators Section
+        st.markdown("## 🔍 Biochemical Indicators")
         st.markdown("---")
 
-    # Physical Measurements
-        # Enter precise measurements
-        
-        st.markdown("### Physical Measurements")
-        st.markdown("---")
         st.info("Enter precise measurements for accurate assessment")
-        col1, col2 = st.columns(2)
-
        
         hemoglobin = st.number_input(
             "Hemoglobin (g/dL)",
@@ -281,6 +280,11 @@ def main():
             value=0.0,
             step=0.1,
             help="Enter the hemoglobin level in grams per deciliter"
+        )
+        anemic = st.selectbox(
+            "Anemic Status",
+            ["Normal", "Anemic"],
+            help="Select if the patient is anemic based on hemoglobin levels"
         )
         st.markdown("**Note:** Fields marked with * are mandatory")
 
@@ -465,6 +469,7 @@ def main():
                 'skin_type': 'Dry, scaly skin' if st.session_state.get('Dry, scaly skin') else 'Normal',
                 'hair_type': 'Brittle / Discolored hair' if st.session_state.get('Brittle / Discolored hair') else 'Normal',
                 'eyes_type': 'Pale conjunctiva' if st.session_state.get('Pale conjunctiva (eyes)') else 'Normal',
+                "anemic": anemic
             }
 
             # Validate required fields
