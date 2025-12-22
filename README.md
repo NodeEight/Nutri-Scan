@@ -51,8 +51,19 @@ streamlit run visualize_data.py
 - Filter by date, category, and location.
 - View metrics, charts, and download data as CSV.
 
-### 3. Machine Learning Pipelines
-- Explore and run the notebooks in `pytorch pipeline/` and `tensorflow pipeline/` for model training and experimentation.
+### 3. Machine Learning & API
+The project includes a robust deep learning module for detecting malnutrition using specialized models for different body parts (head, arm, leg, etc.).
+
+**Features:**
+- **Training**: Specialized ResNet18 models for 7 distinctive body parts.
+- **API**: FastAPI endpoint (`/predict`) for real-time inference.
+
+For detailed ML instructions, see [README_MODEL.md](README_MODEL.md).
+
+```bash
+# Start the Prediction API
+uvicorn api:app --reload
+```
 
 ---
 
@@ -60,14 +71,19 @@ streamlit run visualize_data.py
 
 ```
 Nutri-Scan/
+├── api.py                      # FastAPI application for malnutrition detection
+├── trained_model.py            # Script for training specialized ML models
+├── models/                     # Directory for saved PyTorch models
+├── README_MODEL.md             # Detailed ML documentation
 ├── cloudinary_utils.py         # Cloudinary image upload/delete utilities
 ├── collect_data.py             # Streamlit app for data collection
 ├── database_schema.py          # SQLAlchemy ORM models for database tables
 ├── images/                     # Sample images for the app UI
 ├── malnutrition.db             # SQLite database file
-├── pytorch pipeline/           # PyTorch ML pipeline notebook(s)
-├── tensorflow pipeline/        # TensorFlow ML pipeline notebook(s)
-├── requirements.txt            # Python dependencies
+├── pytorch pipeline/           # Historical PyTorch experiments
+├── tensorflow pipeline/        # Historical TensorFlow experiments
+├── requirements.txt            # App dependencies
+├── requirements_ml.txt         # ML/API dependencies
 ├── visualize_data.py           # Streamlit dashboard for data visualization
 └── README.md                   # Project documentation
 ```
