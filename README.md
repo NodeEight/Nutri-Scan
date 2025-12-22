@@ -10,8 +10,7 @@ Nutri-Scan is a data collection and visualization platform designed to assist in
 - **Database Storage**: Uses SQLite and SQLAlchemy to store structured data for both malnourished and nourished children.
 - **Data Visualization Dashboard**: Interactive Streamlit dashboard for exploring, filtering, and analyzing collected data with charts, metrics, and raw data tables.
 - **Image Management**: Integration with Cloudinary for secure image uploads and management.
-- **Machine Learning Pipelines**: Notebooks for training models using PyTorch and TensorFlow (see respective folders).
-
+- **Machine Learning Pipelines**: Notebooks for training models using PyTorch and FastAPI.
 ---
 
 ## Installation
@@ -74,14 +73,11 @@ Nutri-Scan/
 ├── api.py                      # FastAPI application for malnutrition detection
 ├── trained_model.py            # Script for training specialized ML models
 ├── models/                     # Directory for saved PyTorch models
-├── README_MODEL.md             # Detailed ML documentation
 ├── cloudinary_utils.py         # Cloudinary image upload/delete utilities
 ├── collect_data.py             # Streamlit app for data collection
 ├── database_schema.py          # SQLAlchemy ORM models for database tables
 ├── images/                     # Sample images for the app UI
 ├── malnutrition.db             # SQLite database file
-├── pytorch pipeline/           # Historical PyTorch experiments
-├── tensorflow pipeline/        # Historical TensorFlow experiments
 ├── requirements.txt            # App dependencies
 ├── requirements_ml.txt         # ML/API dependencies
 ├── visualize_data.py           # Streamlit dashboard for data visualization
