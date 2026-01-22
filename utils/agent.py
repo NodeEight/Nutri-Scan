@@ -7,7 +7,7 @@ from utils.prompt import SYSTEM_PROMPT
 
 load_dotenv()
 agent = create_agent(
-    model="gpt-5",
+    model="gpt-5-mini",
     system_prompt=SYSTEM_PROMPT,
     response_format=DiagnosticReport
 )
