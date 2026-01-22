@@ -1,17 +1,29 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException, Query
+import io
+import os
+from typing import List, Optional, Union
+import logging
+
+
+import httpx
+from pydantic import BaseModel, Field
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 import torch
 import torch.nn as nn
 from torchvision import models, transforms
 from PIL import Image
-import io
-import os
+
+from schema.diagnosis import DiagnosticReport
+from schema.models import PredictionRequest, ResponseItem
+from utils.agent import agent
+
+
+log = logging.getLogger(__name__)
 
 # Initialize App
 app = FastAPI(
-    title="Nutri-Scan API",
+    title="Nouritrack API",
     description="API for detecting malnutrition in children using specific body part images.",
     version="2.0.0"
 )
@@ -57,19 +69,19 @@ def load_models():
                 model = model.to(device)
                 model.eval()
                 models_dict[part] = model
-                print(f"✅ Loaded model for: {part}")
+                log.info(f"✅ Loaded model for: {part}")
                 loaded_count += 1
             except Exception as e:
-                print(f"❌ Error loading model for {part}: {e}")
+                log.info(f"❌ Error loading model for {part}: {e}")
         else:
-            print(f"⚠️ Model file not found for {part} at {model_path}")
+            log.info(f"⚠️ Model file not found for {part} at {model_path}")
     return loaded_count
 
 @app.on_event("startup")
 async def startup_event():
-    print("Loading models...")
+    log.info("Loading models...")
     count = load_models()
-    print(f"Startup complete. {count}/{len(BODY_PARTS)} models loaded.")
+    log.info(f"Startup complete. {count}/{len(BODY_PARTS)} models loaded.")
 
 # Transforms
 transform = transforms.Compose([
@@ -81,39 +93,29 @@ transform = transforms.Compose([
 @app.get("/")
 async def root():
     return {
-        "message": "Welcome to Nutri-Scan API", 
+        "message": "Welcome to Nouritrack API", 
         "available_body_parts": list(models_dict.keys())
     }
 
-class PredictionRequest(BaseModel):
-    body_part: str
-    image: UploadFile
 
-@app.post("/predict")
-async def predict(
-    body_part: str = Query(..., description=f"Body part to analyze. Options: {', '.join(BODY_PARTS)}"),
-    file: UploadFile = File(...)
-):
-    # Validate body part
-    body_part = body_part.lower()
-    if body_part not in BODY_PARTS:
-        raise HTTPException(status_code=400, detail=f"Invalid body part. Must be one of: {BODY_PARTS}")
-    
-    # Get model
-    model = models_dict.get(body_part)
-    if not model:
-        raise HTTPException(status_code=503, detail=f"Model for '{body_part}' is not loaded or available.")
-    
-    # Validate file type
-    if file.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
-        raise HTTPException(status_code=400, detail="Invalid file type. Please upload a JPEG or PNG image.")
-    
+async def fetch_and_inference(url, body_part, model):
+    """Downloads a single image and opens it."""
     try:
-        contents = await file.read()
-        image = Image.open(io.BytesIO(contents)).convert("RGB")
+        log.info(f"Starting download: {url}")
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url)
+            if response.status_code != 200:
+                log.info(f"Failed to download {url}: Status code {response.status_code}")
+                return {"status": 400, "detail": f"Failed to download image from {url}"}
+
+        # Convert bytes to image
+        img = Image.open(io.BytesIO(response.content)).convert("RGB")
         
+        # Display image information and open it
+        log.info(f"Successfully downloaded {url} ({img.format})")
+
         # Preprocess
-        input_tensor = transform(image).unsqueeze(0).to(device)
+        input_tensor = transform(img).unsqueeze(0).to(device)
         
         # Inference
         with torch.no_grad():
@@ -127,330 +129,62 @@ async def predict(
         result = classes[predicted_class.item()]
         conf_score = confidence.item()
         
-        return JSONResponse(content={
+        return {
             "body_part": body_part,
             "prediction": result,
             "confidence": f"{conf_score:.2f}",
             "is_nourished": bool(predicted_class.item() == 1)
-        })
-
+        }
+            
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
+        log.info(f"Failed to download {url}: {e}")
 
 
-class PredictionResponse(BaseModel):
-    body_part: str
-    prediction: str
-    confidence: str
-    is_nourished: bool
-
-
-@app.post("/predict/back", response_model=PredictionRequest)
-async def predict_back(
-    file: UploadFile = File(...)
-):
-
-    body_part = 'back'
-    # Get model
-    model = models_dict.get(body_part)
-    if not model:
-        raise HTTPException(status_code=503, detail=f"Model for {body_part} is not loaded or available.")
+@app.post("/predict", status_code=200)
+async def predict(request: PredictionRequest):
+    """Endpoint to predict malnutrition status from body part images and generate diagnostic report.
+    frontView -> leg
+    sideProfile -> side
+    faceCloseUp -> head
+    arm -> muac
     
-    # Validate file type
-    if file.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
-        raise HTTPException(status_code=400, detail="Invalid file type. Please upload a JPEG or PNG image.")
+    """
+    
+    results = []
+    for item in request.body_parts:
+        body_part, image_url = item.body_part.lower(),  item.image_url
+        log.info(f"Processing body part: {body_part} with URL: {image_url}")
+        
+        # Validate body part
+        if body_part not in BODY_PARTS:
+            ret = {"body_part": body_part,
+                   "error": f"Invalid body part. Must be one of: {BODY_PARTS}"}
+            results.append(ret)
+            continue
+    
+        # Get model
+        model = models_dict.get(body_part)
+        if not model:
+            log.error(f"Model for '{body_part}' is not loaded or available.")
+            ret = {"body_part": body_part,
+                   "error": f"Model for '{body_part}' is not loaded or available."}
+            results.append(ret)
+            continue
+     
+        try:
+            result = await fetch_and_inference(image_url, body_part, model)
+            results.append(result)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
     
     try:
-        contents = await file.read()
-        image = Image.open(io.BytesIO(contents)).convert("RGB")
-        
-        # Preprocess
-        input_tensor = transform(image).unsqueeze(0).to(device)
-        
-        # Inference
-        with torch.no_grad():
-            outputs = model(input_tensor)
-            probabilities = torch.nn.functional.softmax(outputs, dim=1)
-            confidence, predicted_class = torch.max(probabilities, 1)
-            
-        # Class mapping
-        # 0: Malnourished, 1: Normal
-        classes = ["Malnourished", "Nourished"] 
-        result = classes[predicted_class.item()]
-        conf_score = confidence.item()
-        
-        return JSONResponse(content={
-            "body_part": body_part,
-            "prediction": result,
-            "confidence": f"{conf_score:.2f}",
-            "is_nourished": bool(predicted_class.item() == 1)
-        })
-
+        agent_response = agent.invoke({"messages": [{"role": "user", "content": request.model_dump_json() }]})
+        results.append({"diagnostic_report": agent_response["structured_response"].model_dump_json()})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
-
-@app.post("/predict/body", response_model=PredictionRequest)
-async def predict_body(
-    file: UploadFile = File(...)
-):
-    body_part = 'body'
-    # Get model
-    model = models_dict.get(body_part)
-    if not model:
-        raise HTTPException(status_code=503, detail=f"Model for {body_part} is not loaded or available.")
-
-    # Validate file type
-    if file.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
-        raise HTTPException(status_code=400, detail="Invalid file type. Please upload a JPEG or PNG image.")
+        raise HTTPException(status_code=500, detail=f"Agent invocation failed: {str(e)}")
     
-    try:
-        contents = await file.read()
-        image = Image.open(io.BytesIO(contents)).convert("RGB")
-        
-        # Preprocess
-        input_tensor = transform(image).unsqueeze(0).to(device)
-        
-        # Inference
-        with torch.no_grad():
-            outputs = model(input_tensor)
-            probabilities = torch.nn.functional.softmax(outputs, dim=1)
-            confidence, predicted_class = torch.max(probabilities, 1)
-            
-        # Class mapping
-        # 0: Malnourished, 1: Normal
-        classes = ["Malnourished", "Nourished"] 
-        result = classes[predicted_class.item()]
-        conf_score = confidence.item()
-        
-        return JSONResponse(content={
-            "body_part": body_part,
-            "prediction": result,
-            "confidence": f"{conf_score:.2f}",
-            "is_nourished": bool(predicted_class.item() == 1)
-        })
+    return JSONResponse(content=results)
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
+       
 
-
-
-@app.post("/predict/finger", response_model=PredictionRequest)
-async def predict_finger(
-    file: UploadFile = File(...)
-):
-    body_part = 'finger'
-    # Get model
-    model = models_dict.get(body_part)
-    if not model:
-        raise HTTPException(status_code=503, detail=f"Model for {body_part} is not loaded or available.")
-
-    # Validate file type
-    if file.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
-        raise HTTPException(status_code=400, detail="Invalid file type. Please upload a JPEG or PNG image.")
-    
-    try:
-        contents = await file.read()
-        image = Image.open(io.BytesIO(contents)).convert("RGB")
-        
-        # Preprocess
-        input_tensor = transform(image).unsqueeze(0).to(device)
-        
-        # Inference
-        with torch.no_grad():
-            outputs = model(input_tensor)
-            probabilities = torch.nn.functional.softmax(outputs, dim=1)
-            confidence, predicted_class = torch.max(probabilities, 1)
-            
-        # Class mapping
-        # 0: Malnourished, 1: Normal
-        classes = ["Malnourished", "Nourished"] 
-        result = classes[predicted_class.item()]
-        conf_score = confidence.item()
-        
-        return JSONResponse(content={
-            "body_part": body_part,
-            "prediction": result,
-            "confidence": f"{conf_score:.2f}",
-            "is_nourished": bool(predicted_class.item() == 1)
-        })
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
-
-
-@app.post("/predict/head", response_model=PredictionRequest)
-async def predict_head(
-    file: UploadFile = File(...)
-):
-    body_part = 'head'
-    # Get model
-    model = models_dict.get(body_part)
-    if not model:
-        raise HTTPException(status_code=503, detail=f"Model for {body_part} is not loaded or available.")
-
-    # Validate file type
-    if file.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
-        raise HTTPException(status_code=400, detail="Invalid file type. Please upload a JPEG or PNG image.")
-    
-    try:
-        contents = await file.read()
-        image = Image.open(io.BytesIO(contents)).convert("RGB")
-        
-        # Preprocess
-        input_tensor = transform(image).unsqueeze(0).to(device)
-        
-        # Inference
-        with torch.no_grad():
-            outputs = model(input_tensor)
-            probabilities = torch.nn.functional.softmax(outputs, dim=1)
-            confidence, predicted_class = torch.max(probabilities, 1)
-            
-        # Class mapping
-        # 0: Malnourished, 1: Normal
-        classes = ["Malnourished", "Nourished"] 
-        result = classes[predicted_class.item()]
-        conf_score = confidence.item()
-        
-        return JSONResponse(content={
-            "body_part": body_part,
-            "prediction": result,
-            "confidence": f"{conf_score:.2f}",
-            "is_nourished": bool(predicted_class.item() == 1)
-        })
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
-
-
-@app.post("/predict/leg", response_model=PredictionRequest)
-async def predict_leg(
-    file: UploadFile = File(...)
-):
-    body_part = 'leg'
-    # Get model
-    model = models_dict.get(body_part)
-    if not model:
-        raise HTTPException(status_code=503, detail=f"Model for {body_part} is not loaded or available.")
-
-    # Validate file type
-    if file.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
-        raise HTTPException(status_code=400, detail="Invalid file type. Please upload a JPEG or PNG image.")
-    
-    try:
-        contents = await file.read()
-        image = Image.open(io.BytesIO(contents)).convert("RGB")
-        
-        # Preprocess
-        input_tensor = transform(image).unsqueeze(0).to(device)
-        
-        # Inference
-        with torch.no_grad():
-            outputs = model(input_tensor)
-            probabilities = torch.nn.functional.softmax(outputs, dim=1)
-            confidence, predicted_class = torch.max(probabilities, 1)
-            
-        # Class mapping
-        # 0: Malnourished, 1: Normal
-        classes = ["Malnourished", "Nourished"] 
-        result = classes[predicted_class.item()]
-        conf_score = confidence.item()
-        
-        return JSONResponse(content={
-            "body_part": body_part,
-            "prediction": result,
-            "confidence": f"{conf_score:.2f}",
-            "is_nourished": bool(predicted_class.item() == 1)
-        })
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
-
-'muac', 'side'
-
-@app.post("/predict/muac", response_model=PredictionRequest)
-async def predict_muac(
-    file: UploadFile = File(...)
-):
-    body_part = 'muac'
-    # Get model
-    model = models_dict.get(body_part)
-    if not model:
-        raise HTTPException(status_code=503, detail=f"Model for {body_part} is not loaded or available.")
-
-    # Validate file type
-    if file.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
-        raise HTTPException(status_code=400, detail="Invalid file type. Please upload a JPEG or PNG image.")
-    
-    try:
-        contents = await file.read()
-        image = Image.open(io.BytesIO(contents)).convert("RGB")
-        
-        # Preprocess
-        input_tensor = transform(image).unsqueeze(0).to(device)
-        
-        # Inference
-        with torch.no_grad():
-            outputs = model(input_tensor)
-            probabilities = torch.nn.functional.softmax(outputs, dim=1)
-            confidence, predicted_class = torch.max(probabilities, 1)
-            
-        # Class mapping
-        # 0: Malnourished, 1: Normal
-        classes = ["Malnourished", "Nourished"] 
-        result = classes[predicted_class.item()]
-        conf_score = confidence.item()
-        
-        return JSONResponse(content={
-            "body_part": body_part,
-            "prediction": result,
-            "confidence": f"{conf_score:.2f}",
-            "is_nourished": bool(predicted_class.item() == 1)
-        })
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
-    
-
-@app.post("/predict/side", response_model=PredictionRequest)
-async def predict_side(
-    file: UploadFile = File(...)
-):
-    body_part = 'side'
-    # Get model
-    model = models_dict.get(body_part)
-    if not model:
-        raise HTTPException(status_code=503, detail=f"Model for {body_part} is not loaded or available.")
-
-    # Validate file type
-    if file.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
-        raise HTTPException(status_code=400, detail="Invalid file type. Please upload a JPEG or PNG image.")
-    
-    try:
-        contents = await file.read()
-        image = Image.open(io.BytesIO(contents)).convert("RGB")
-        
-        # Preprocess
-        input_tensor = transform(image).unsqueeze(0).to(device)
-        
-        # Inference
-        with torch.no_grad():
-            outputs = model(input_tensor)
-            probabilities = torch.nn.functional.softmax(outputs, dim=1)
-            confidence, predicted_class = torch.max(probabilities, 1)
-            
-        # Class mapping
-        # 0: Malnourished, 1: Normal
-        classes = ["Malnourished", "Nourished"] 
-        result = classes[predicted_class.item()]
-        conf_score = confidence.item()
-        
-        return JSONResponse(content={
-            "body_part": body_part,
-            "prediction": result,
-            "confidence": f"{conf_score:.2f}",
-            "is_nourished": bool(predicted_class.item() == 1)
-        })
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
