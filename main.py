@@ -155,6 +155,7 @@ async def predict(request: PredictionRequest):
     arm -> muac
     
     """
+    print(f"Received prediction request: {request.model_dump_json()}")
     
     results = []
     for item in request.body_parts:

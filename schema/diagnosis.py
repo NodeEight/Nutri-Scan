@@ -44,6 +44,7 @@ Confidence_Level:
 
 """
 
+from typing import Optional
 from pydantic import BaseModel, Field
 
 class DiagnosisSection(BaseModel):
@@ -80,6 +81,6 @@ class DiagnosticReport(BaseModel):
     Clinical_Summary: ClinicalSummarySection = Field(description="Clinical summary section")
     WHO_Criteria_Triggered: list[str] = Field(description="WHO criteria triggered")
     Micronutrient_Deficiency_Suspicions: list[MicronutrientDeficiencySuspicion] = Field(description="Micronutrient deficiency suspicions")
-    Recommended_Management: RecommendedManagementSection = Field(description="Recommended management section")
+    Recommended_Management: Optional[RecommendedManagementSection] = Field(description="Recommended management section")
     Confidence_Level: ConfidenceLevelSection = Field(description="Confidence level section")
     
