@@ -14,10 +14,12 @@ import torch
 import torch.nn as nn
 from torchvision import models, transforms
 from PIL import Image
+from dotenv import load_dotenv
 
 from schema.models import PredictionRequest, PredictionAPIResponse
 from utils.agent import agent
 
+load_dotenv()
 
 log = logging.getLogger("nouritrack_api")
 log.setLevel(logging.INFO)

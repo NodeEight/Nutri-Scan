@@ -94,7 +94,6 @@ class PredictionRequest(BaseModel):
     vital_measurements: VitalMeasurements
     clinical_findings: clinicalFindings
 
-    # json_schema_example = json_schema_example
 
 
 class ModelResponse(BaseModel):
