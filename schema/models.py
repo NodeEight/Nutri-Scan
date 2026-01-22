@@ -1,5 +1,9 @@
-from pydantic import BaseModel, Field, HttpUrl, field_validator
 from typing import Optional, List, Union
+from pydantic import BaseModel, Field, HttpUrl, field_validator
+
+
+from schema.diagnosis import DiagnosticReport
+
 
 
 json_schema_example = {
@@ -44,7 +48,7 @@ class BodyPart(BaseModel):
     body_part: str = Field(
         ..., description=f"Body part name: {', '.join(BODY_PARTS)}", example="arm"
     )
-    image_url: HttpUrl = Field(..., description="Image url of the body part")
+    image_url: str = Field(..., description="Image url of the body part")
 
     # @field_validator('body_part')
     # def validate_body_part(cls, v):
@@ -104,9 +108,16 @@ class ModelResponseError(BaseModel):
     body_part: str = Field(..., description="Body part name")
     error: str = Field(..., description="Error message")
 
-
-ResponseItem = Union[ModelResponse, ModelResponseError]
-
+class DiagnosticResult(BaseModel):
+    diagnostic_report: DiagnosticReport = Field(
+        ..., description="Structured diagnostic report"
+    )
+ResponseItem = Union[ModelResponse, DiagnosticResult]
+class PredictionAPIResponse(BaseModel):
+    status_code: int = Field(..., description="HTTP status code")
+    results: List[ResponseItem] = Field(
+        ..., description="List of prediction results and diagnostic report"
+    )
 
 if __name__ == "__main__":
     """

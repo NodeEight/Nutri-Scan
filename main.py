@@ -1,4 +1,5 @@
 import io
+import json
 import os
 from typing import List, Optional, Union
 import logging
@@ -14,12 +15,13 @@ import torch.nn as nn
 from torchvision import models, transforms
 from PIL import Image
 
-from schema.diagnosis import DiagnosticReport
-from schema.models import PredictionRequest, ResponseItem
+from schema.models import PredictionRequest, PredictionAPIResponse
 from utils.agent import agent
 
 
-log = logging.getLogger(__name__)
+log = logging.getLogger("nouritrack_api")
+log.setLevel(logging.INFO)
+
 
 # Initialize App
 app = FastAPI(
@@ -69,19 +71,20 @@ def load_models():
                 model = model.to(device)
                 model.eval()
                 models_dict[part] = model
-                log.info(f"✅ Loaded model for: {part}")
+                print(f"✅ Loaded model for: {part}")
                 loaded_count += 1
             except Exception as e:
-                log.info(f"❌ Error loading model for {part}: {e}")
+                print(f"❌ Error loading model for {part}: {e}")
         else:
-            log.info(f"⚠️ Model file not found for {part} at {model_path}")
+            print(f"⚠️ Model file not found for {part} at {model_path}")
     return loaded_count
 
 @app.on_event("startup")
 async def startup_event():
-    log.info("Loading models...")
+    print("Loading models...")
     count = load_models()
-    log.info(f"Startup complete. {count}/{len(BODY_PARTS)} models loaded.")
+    print(f"Startup complete. {count}/{len(BODY_PARTS)} models loaded.")
+    print(f"Startup complete. {count}/{len(BODY_PARTS)} models loaded.")
 
 # Transforms
 transform = transforms.Compose([
@@ -101,18 +104,18 @@ async def root():
 async def fetch_and_inference(url, body_part, model):
     """Downloads a single image and opens it."""
     try:
-        log.info(f"Starting download: {url}")
+        print(f"Starting download: {url}")
         async with httpx.AsyncClient() as client:
             response = await client.get(url)
             if response.status_code != 200:
-                log.info(f"Failed to download {url}: Status code {response.status_code}")
+                print(f"Failed to download {url}: Status code {response.status_code}")
                 return {"status": 400, "detail": f"Failed to download image from {url}"}
 
         # Convert bytes to image
         img = Image.open(io.BytesIO(response.content)).convert("RGB")
         
         # Display image information and open it
-        log.info(f"Successfully downloaded {url} ({img.format})")
+        print(f"Successfully downloaded {url} ({img.format})")
 
         # Preprocess
         input_tensor = transform(img).unsqueeze(0).to(device)
@@ -137,12 +140,13 @@ async def fetch_and_inference(url, body_part, model):
         }
             
     except Exception as e:
-        log.info(f"Failed to download {url}: {e}")
+        print(f"Failed to download {url}: {e}")
 
 
-@app.post("/predict", status_code=200)
+@app.post("/predict", status_code=200, response_model=PredictionAPIResponse)
 async def predict(request: PredictionRequest):
     """Endpoint to predict malnutrition status from body part images and generate diagnostic report.
+    <hr>
     frontView -> leg
     sideProfile -> side
     faceCloseUp -> head
@@ -153,7 +157,7 @@ async def predict(request: PredictionRequest):
     results = []
     for item in request.body_parts:
         body_part, image_url = item.body_part.lower(),  item.image_url
-        log.info(f"Processing body part: {body_part} with URL: {image_url}")
+        print(f"Processing body part: {body_part} with URL: {image_url}")
         
         # Validate body part
         if body_part not in BODY_PARTS:
@@ -178,13 +182,15 @@ async def predict(request: PredictionRequest):
             raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
     
     try:
+        print("Invoking agent for diagnostic report generation...")
         agent_response = agent.invoke({"messages": [{"role": "user", "content": request.model_dump_json() }]})
-        results.append({"diagnostic_report": agent_response["structured_response"].model_dump_json()})
+        resp = agent_response["structured_response"].model_dump_json()
+        print(f"Diagnostic report: {resp}.")
+        results.append({"diagnostic_report": json.loads(resp)})
+        print("Agent invocation successful.")
     except Exception as e:
+        print(f"Agent invocation failed: {e}")
         raise HTTPException(status_code=500, detail=f"Agent invocation failed: {str(e)}")
     
-    return JSONResponse(content=results)
-
-       
-
+    return JSONResponse(content={"status_code": 200, "results": results})
 
