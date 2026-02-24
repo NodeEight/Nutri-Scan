@@ -5,7 +5,6 @@ from pydantic import BaseModel, Field, HttpUrl, field_validator
 from schema.diagnosis import DiagnosticReport
 
 
-
 json_schema_example = {
     "body_parts": [
         {
@@ -91,9 +90,8 @@ class PredictionRequest(BaseModel):
         None, description="Unique identifier for the screening session"
     )
     body_parts: Optional[List[BodyPart]]
-    vital_measurements: VitalMeasurements
-    clinical_findings: clinicalFindings
-
+    vital_measurements: Optional[VitalMeasurements]
+    clinical_findings: Optional[clinicalFindings]
 
 
 class ModelResponse(BaseModel):
@@ -107,16 +105,22 @@ class ModelResponseError(BaseModel):
     body_part: str = Field(..., description="Body part name")
     error: str = Field(..., description="Error message")
 
+
 class DiagnosticResult(BaseModel):
     diagnostic_report: DiagnosticReport = Field(
         ..., description="Structured diagnostic report"
     )
+
+
 ResponseItem = Union[ModelResponse, DiagnosticResult]
+
+
 class PredictionAPIResponse(BaseModel):
     status_code: int = Field(..., description="HTTP status code")
     results: List[ResponseItem] = Field(
         ..., description="List of prediction results and diagnostic report"
     )
+
 
 if __name__ == "__main__":
     """
@@ -176,7 +180,7 @@ if __name__ == "__main__":
     """
 
     json_schema_example = {
-       "screening_id": "69268423ed8293d3b66aeeda", 
+        "screening_id": "69268423ed8293d3b66aeeda",
         "body_parts": [
             {
                 "body_part": "muac",
